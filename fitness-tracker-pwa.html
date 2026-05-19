@@ -135,6 +135,17 @@
   .idea-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .idea-detail { font-size:11px; color:var(--muted); margin-top:2px; }
   .idea-btn { background:var(--accent); color:#000; border:none; border-radius:6px; padding:6px 12px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0; }
+  .food-results { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+  .food-result { background:var(--surface2); border-radius:8px; padding:10px 12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background .15s; }
+  .food-result:active { background:#2a2a2a; }
+  .food-result-name { font-size:13px; font-weight:600; }
+  .food-result-kcal { font-size:12px; color:var(--accent); font-weight:700; flex-shrink:0; margin-left:8px; }
+  .food-result-macro { font-size:10px; color:var(--muted); margin-top:2px; }
+  .portion-box { background:var(--surface2); border-radius:10px; padding:14px; margin-top:8px; }
+  .portion-food-name { font-weight:700; font-size:14px; margin-bottom:2px; }
+  .portion-food-sub { font-size:11px; color:var(--muted); margin-bottom:12px; }
+  .portion-result { background:var(--surface); border:1.5px solid var(--accent); border-radius:8px; padding:10px 14px; margin:10px 0; font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--accent); letter-spacing:1px; }
+  .portion-result small { font-size:13px; color:var(--muted); margin-left:6px; font-family:'DM Sans',sans-serif; }
   /* INSTALL */
   .install-banner { background:linear-gradient(135deg,#1a1a0a,#1f1f1f); border:1px solid var(--accent);
     border-radius:var(--radius); padding:14px 16px; margin:12px 20px; display:flex; align-items:center; gap:12px; }
@@ -289,9 +300,35 @@
 
   <div class="card">
     <div class="card-title">➕ AÑADIR COMIDA</div>
+    <div class="form-group" style="margin-bottom:6px"><label>Fecha</label><input type="date" id="mealFecha"></div>
+
+    <div class="card-sub" style="margin-top:10px">BUSCAR ALIMENTO</div>
+    <div style="display:flex;gap:8px;margin-bottom:0">
+      <div class="form-group" style="margin-bottom:0">
+        <input type="text" id="foodSearch" placeholder="Ej: pechuga de pollo, avena..." oninput="searchFood()">
+      </div>
+    </div>
+    <div class="food-results" id="foodResults"></div>
+
+    <div class="portion-box" id="portionBox" style="display:none">
+      <div class="portion-food-name" id="portionFoodName">—</div>
+      <div class="portion-food-sub" id="portionFoodSub">— kcal · — P · — C · — G por 100g</div>
+      <div class="form-group" style="margin-bottom:6px">
+        <label>Cantidad (gramos)</label>
+        <input type="number" id="portionGrams" placeholder="150" oninput="updatePortion()">
+      </div>
+      <div class="portion-result" id="portionResult">— kcal<small></small></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-full" onclick="addFromPortion()">Añadir</button>
+        <button class="btn-sm btn-secondary" onclick="clearPortionBox()" style="white-space:nowrap">✕ Cancelar</button>
+      </div>
+      <input type="hidden" id="_fk"><input type="hidden" id="_fp">
+      <input type="hidden" id="_fc"><input type="hidden" id="_fg"><input type="hidden" id="_fn">
+    </div>
+
+    <div class="card-sub" style="margin-top:14px">O ENTRADA MANUAL</div>
     <div class="form-row">
-      <div class="form-group" style="flex:2"><label>Nombre</label><input type="text" id="mealName" placeholder="Ej: Pollo con arroz"></div>
-      <div class="form-group"><label>Fecha</label><input type="date" id="mealFecha"></div>
+      <div class="form-group" style="flex:2"><label>Nombre del plato</label><input type="text" id="mealName" placeholder="Ej: Ensalada de atún"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Kcal *</label><input type="number" id="mealKcal" placeholder="450"></div>
@@ -301,7 +338,7 @@
       <div class="form-group"><label>Carbos (g)</label><input type="number" id="mealCarb" placeholder="—"></div>
       <div class="form-group"><label>Grasas (g)</label><input type="number" id="mealGras" placeholder="—"></div>
     </div>
-    <button class="btn-full" onclick="addMeal()">Añadir comida</button>
+    <button class="btn-full" onclick="addMeal()">Añadir manualmente</button>
   </div>
 
   <div class="card">
@@ -414,6 +451,76 @@ const RUTINAS = {
     {icon:'🧘',name:'Estiramientos suaves',detail:'10-15 min',muscle:'Flexibilidad'},
   ]}
 };
+
+const ALIMENTOS = [
+  // Proteínas animales
+  {n:'Pechuga pollo (cruda)',k:110,p:23,c:0,g:1},
+  {n:'Pechuga pollo (cocinada)',k:165,p:31,c:0,g:4},
+  {n:'Pechuga pavo',k:104,p:22,c:0,g:1},
+  {n:'Muslo pollo (sin piel)',k:177,p:25,c:0,g:8},
+  {n:'Salmón',k:208,p:20,c:0,g:13},
+  {n:'Atún en agua (escurrido)',k:116,p:26,c:0,g:1},
+  {n:'Atún en aceite (escurrido)',k:198,p:25,c:0,g:11},
+  {n:'Merluza',k:86,p:17,c:0,g:2},
+  {n:'Bacalao',k:82,p:18,c:0,g:1},
+  {n:'Gambas',k:99,p:18,c:2,g:2},
+  {n:'Huevo entero',k:155,p:13,c:1,g:11},
+  {n:'Clara de huevo',k:52,p:11,c:1,g:0},
+  {n:'Ternera magra',k:158,p:26,c:0,g:6},
+  {n:'Cerdo lomo',k:182,p:22,c:0,g:10},
+  {n:'Jamón york',k:107,p:17,c:1,g:4},
+  // Lácteos
+  {n:'Yogur griego 0%',k:59,p:10,c:4,g:0},
+  {n:'Yogur griego natural',k:97,p:9,c:4,g:5},
+  {n:'Leche entera',k:61,p:3,c:5,g:3},
+  {n:'Leche semidesnatada',k:46,p:3,c:5,g:2},
+  {n:'Requesón / cottage',k:98,p:11,c:3,g:4},
+  {n:'Queso batido 0%',k:45,p:8,c:3,g:0},
+  {n:'Proteína whey en polvo',k:380,p:74,c:9,g:7},
+  // Cereales y carbohidratos
+  {n:'Arroz blanco (crudo)',k:360,p:7,c:80,g:1},
+  {n:'Arroz blanco (cocido)',k:130,p:3,c:28,g:0},
+  {n:'Arroz integral (cocido)',k:111,p:3,c:23,g:1},
+  {n:'Pasta (cruda)',k:360,p:12,c:72,g:2},
+  {n:'Pasta (cocida)',k:158,p:6,c:31,g:1},
+  {n:'Avena',k:389,p:17,c:66,g:7},
+  {n:'Pan integral',k:247,p:9,c:45,g:4},
+  {n:'Pan blanco',k:265,p:8,c:51,g:3},
+  {n:'Patata (cruda)',k:77,p:2,c:17,g:0},
+  {n:'Patata (cocida)',k:86,p:2,c:20,g:0},
+  {n:'Boniato',k:86,p:2,c:20,g:0},
+  {n:'Quinoa (cocida)',k:120,p:4,c:21,g:2},
+  // Legumbres
+  {n:'Lentejas (cocidas)',k:116,p:9,c:20,g:0},
+  {n:'Garbanzos (cocidos)',k:164,p:9,c:27,g:3},
+  {n:'Alubias (cocidas)',k:127,p:9,c:23,g:1},
+  {n:'Edamame',k:121,p:11,c:9,g:5},
+  // Frutas
+  {n:'Plátano',k:89,p:1,c:23,g:0},
+  {n:'Manzana',k:52,p:0,c:14,g:0},
+  {n:'Naranja',k:47,p:1,c:12,g:0},
+  {n:'Fresas',k:32,p:1,c:8,g:0},
+  {n:'Frutos rojos mix',k:40,p:1,c:9,g:0},
+  // Grasas
+  {n:'Aceite de oliva',k:884,p:0,c:0,g:100},
+  {n:'Aguacate',k:160,p:2,c:9,g:15},
+  {n:'Nueces',k:654,p:15,c:14,g:65},
+  {n:'Almendras',k:579,p:21,c:22,g:50},
+  {n:'Mantequilla cacahuete',k:588,p:25,c:20,g:50},
+  // Verduras
+  {n:'Brócoli',k:34,p:3,c:7,g:0},
+  {n:'Espinacas',k:23,p:3,c:4,g:0},
+  {n:'Lechuga',k:15,p:1,c:3,g:0},
+  {n:'Tomate',k:18,p:1,c:4,g:0},
+  {n:'Pepino',k:15,p:1,c:4,g:0},
+  {n:'Zanahoria',k:41,p:1,c:10,g:0},
+  {n:'Calabacín',k:17,p:1,c:3,g:0},
+  {n:'Pimiento rojo',k:31,p:1,c:6,g:0},
+  {n:'Cebolla',k:40,p:1,c:9,g:0},
+  {n:'Judías verdes',k:31,p:2,c:7,g:0},
+  {n:'Champiñones',k:22,p:3,c:3,g:0},
+  {n:'Calabaza',k:26,p:1,c:7,g:0},
+];
 
 const MEAL_IDEAS = {
   desayuno:[
@@ -773,6 +880,78 @@ function renderResumenProgreso() {
     <div class="stat-box"><div class="stat-value">${numWorkouts}</div><div class="stat-label">Entrenos totales</div></div>
     <div class="stat-box"><div class="stat-value" style="color:${perdido>0?'var(--accent)':'var(--muted)'}">${perdido!==null?(perdido>0?'-'+perdido+'kg':perdido+'kg'):'—'}</div><div class="stat-label">Peso perdido</div></div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════
+// BUSCADOR DE ALIMENTOS
+// ═══════════════════════════════════════════
+function searchFood() {
+  const q = document.getElementById('foodSearch').value.trim().toLowerCase();
+  const el = document.getElementById('foodResults');
+  if (q.length < 2) { el.innerHTML = ''; return; }
+  const results = ALIMENTOS.filter(a => a.n.toLowerCase().includes(q)).slice(0, 7);
+  if (!results.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">Sin resultados — usa la entrada manual</div>';
+    return;
+  }
+  el.innerHTML = results.map((a, i) => `
+    <div class="food-result" onclick="selectFood(${ALIMENTOS.indexOf(a)})">
+      <div>
+        <div class="food-result-name">${a.n}</div>
+        <div class="food-result-macro">P:${a.p}g · C:${a.c}g · G:${a.g}g por 100g</div>
+      </div>
+      <div class="food-result-kcal">${a.k} kcal/100g</div>
+    </div>`).join('');
+}
+
+function selectFood(idx) {
+  const a = ALIMENTOS[idx];
+  document.getElementById('_fn').value = a.n;
+  document.getElementById('_fk').value = a.k;
+  document.getElementById('_fp').value = a.p;
+  document.getElementById('_fc').value = a.c;
+  document.getElementById('_fg').value = a.g;
+  document.getElementById('portionFoodName').textContent = a.n;
+  document.getElementById('portionFoodSub').textContent = `${a.k} kcal · P:${a.p}g · C:${a.c}g · G:${a.g}g por 100g`;
+  document.getElementById('portionBox').style.display = 'block';
+  document.getElementById('portionGrams').value = '';
+  document.getElementById('portionResult').innerHTML = '— kcal<small></small>';
+  document.getElementById('foodResults').innerHTML = '';
+  document.getElementById('foodSearch').value = '';
+  document.getElementById('portionGrams').focus();
+}
+
+function updatePortion() {
+  const g = parseFloat(document.getElementById('portionGrams').value) || 0;
+  const f = g / 100;
+  const kcal = Math.round(+document.getElementById('_fk').value * f);
+  const prot = Math.round(+document.getElementById('_fp').value * f);
+  const carb = Math.round(+document.getElementById('_fc').value * f);
+  const gras = Math.round(+document.getElementById('_fg').value * f);
+  document.getElementById('portionResult').innerHTML = g > 0
+    ? `${kcal} kcal<small>  P:${prot}g · C:${carb}g · G:${gras}g</small>`
+    : '— kcal<small></small>';
+}
+
+function addFromPortion() {
+  const g = parseFloat(document.getElementById('portionGrams').value);
+  const fecha = document.getElementById('mealFecha').value;
+  if (!g || !fecha) return alert('Introduce los gramos y asegúrate de tener la fecha');
+  const f = g / 100;
+  const name = document.getElementById('_fn').value + ` (${g}g)`;
+  const kcal = Math.round(+document.getElementById('_fk').value * f);
+  const prot = Math.round(+document.getElementById('_fp').value * f);
+  const carb = Math.round(+document.getElementById('_fc').value * f);
+  const gras = Math.round(+document.getElementById('_fg').value * f);
+  if (!state.dayMeals[fecha]) state.dayMeals[fecha] = [];
+  state.dayMeals[fecha].push({name,kcal,prot,carb,gras});
+  save(); clearPortionBox(); renderNutricion();
+  showToast('Comida añadida ✓');
+}
+
+function clearPortionBox() {
+  document.getElementById('portionBox').style.display = 'none';
+  document.getElementById('portionGrams').value = '';
 }
 
 // ═══════════════════════════════════════════
