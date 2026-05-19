@@ -148,6 +148,14 @@
   .hint { font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
   .empty { text-align:center; padding:30px 20px; color:var(--muted); font-size:13px; }
   .empty-icon { font-size:36px; margin-bottom:8px; }
+  .meal-macros { display:flex; justify-content:space-around; background:var(--surface2); border-radius:8px; padding:10px; margin-top:10px; }
+  .meal-macro { text-align:center; }
+  .meal-macro span { display:block; font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--accent); }
+  .meal-macro small { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .shop-item { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); }
+  .shop-item:last-child { border-bottom:none; }
+  .shop-check { width:22px; height:22px; border-radius:50%; border:2px solid var(--border); background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; transition:all .2s; color:transparent; flex-shrink:0; }
+  .shop-check.checked { background:var(--accent); border-color:var(--accent); color:#000; }
 
   /* BANNER INSTALACIÓN */
   .install-banner {
@@ -200,6 +208,7 @@
   <div class="nav-tab" onclick="showTab('peso',this)">⚖️ Peso</div>
   <div class="nav-tab" onclick="showTab('medidas',this)">📐 Medidas</div>
   <div class="nav-tab" onclick="showTab('calorias',this)">🔥 Calorías</div>
+  <div class="nav-tab" onclick="showTab('menu',this)">🍽️ Menú</div>
 </div>
 
 <!-- RUTINA -->
@@ -349,6 +358,17 @@
   </div>
 </div>
 
+<!-- MENÚ SEMANAL -->
+<div class="section" id="tab-menu">
+  <div class="day-selector" id="daySelectorMenu"></div>
+  <div id="menuDayContent"></div>
+  <div class="card">
+    <div class="card-title">🛒 LISTA DE LA COMPRA</div>
+    <p class="hint" style="margin-bottom:12px;text-align:left">Ingredientes de toda la semana planificada</p>
+    <div id="shoppingList"><div class="empty"><div class="empty-icon">🛒</div>Planifica comidas para generar la lista</div></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -406,6 +426,52 @@ const RUTINAS = {
 };
 
 // ═══════════════════════════════════════════
+// DATOS MENÚ
+// ═══════════════════════════════════════════
+const MEALS = {
+  desayuno: [
+    { name:'Avena con plátano', kcal:380, prot:12, carb:68, gras:8,
+      ing:[{i:'Avena',q:'80g'},{i:'Plátano',q:'1 ud'},{i:'Leche semidesnatada',q:'200ml'}] },
+    { name:'Tostadas aguacate y huevo', kcal:420, prot:18, carb:38, gras:22,
+      ing:[{i:'Pan integral',q:'2 rebanadas'},{i:'Aguacate',q:'½ ud'},{i:'Huevos',q:'2 ud'}] },
+    { name:'Yogur griego con frutos rojos', kcal:290, prot:20, carb:28, gras:8,
+      ing:[{i:'Yogur griego 0%',q:'200g'},{i:'Frutos rojos',q:'100g'},{i:'Nueces',q:'15g'}] },
+    { name:'Tortitas de avena', kcal:360, prot:22, carb:48, gras:8,
+      ing:[{i:'Avena',q:'60g'},{i:'Huevos',q:'2 ud'},{i:'Plátano',q:'1 ud'},{i:'Canela',q:'al gusto'}] },
+    { name:'Batido proteico con fruta', kcal:320, prot:28, carb:38, gras:5,
+      ing:[{i:'Proteína en polvo',q:'30g'},{i:'Leche semidesnatada',q:'300ml'},{i:'Fresas',q:'100g'}] },
+  ],
+  comida: [
+    { name:'Pollo con arroz y ensalada', kcal:520, prot:42, carb:52, gras:10,
+      ing:[{i:'Pechuga de pollo',q:'200g'},{i:'Arroz',q:'80g'},{i:'Lechuga',q:'100g'},{i:'Tomate',q:'1 ud'},{i:'Aceite de oliva',q:'1 cda'}] },
+    { name:'Lentejas estofadas', kcal:480, prot:26, carb:68, gras:8,
+      ing:[{i:'Lentejas',q:'100g'},{i:'Zanahoria',q:'1 ud'},{i:'Cebolla',q:'1 ud'},{i:'Patata',q:'1 ud'},{i:'Tomate triturado',q:'50g'}] },
+    { name:'Salmón con patata y brócoli', kcal:490, prot:38, carb:32, gras:22,
+      ing:[{i:'Salmón',q:'200g'},{i:'Patata',q:'150g'},{i:'Brócoli',q:'150g'},{i:'Aceite de oliva',q:'1 cda'}] },
+    { name:'Pasta integral con atún', kcal:510, prot:32, carb:70, gras:8,
+      ing:[{i:'Pasta integral',q:'90g'},{i:'Atún en agua',q:'120g'},{i:'Tomate natural',q:'200g'},{i:'Ajo',q:'2 dientes'}] },
+    { name:'Pavo con quinoa y pimientos', kcal:470, prot:44, carb:42, gras:10,
+      ing:[{i:'Pechuga de pavo',q:'200g'},{i:'Quinoa',q:'80g'},{i:'Pimiento rojo',q:'1 ud'},{i:'Pimiento verde',q:'1 ud'}] },
+    { name:'Garbanzos con espinacas', kcal:440, prot:24, carb:58, gras:10,
+      ing:[{i:'Garbanzos cocidos',q:'200g'},{i:'Espinacas',q:'150g'},{i:'Huevos',q:'2 ud'},{i:'Ajo',q:'2 dientes'}] },
+  ],
+  cena: [
+    { name:'Tortilla de claras y espinacas', kcal:280, prot:30, carb:8, gras:12,
+      ing:[{i:'Claras de huevo',q:'6 ud'},{i:'Espinacas',q:'100g'},{i:'Aceite de oliva',q:'1 cda'}] },
+    { name:'Merluza con judías verdes', kcal:320, prot:36, carb:14, gras:8,
+      ing:[{i:'Merluza',q:'250g'},{i:'Judías verdes',q:'200g'},{i:'Aceite de oliva',q:'1 cda'},{i:'Limón',q:'½ ud'}] },
+    { name:'Ensalada de atún', kcal:340, prot:32, carb:18, gras:14,
+      ing:[{i:'Atún en agua',q:'160g'},{i:'Lechuga',q:'150g'},{i:'Tomate',q:'2 ud'},{i:'Pepino',q:'1 ud'},{i:'Huevo cocido',q:'1 ud'}] },
+    { name:'Pollo con verduras al vapor', kcal:360, prot:40, carb:20, gras:10,
+      ing:[{i:'Pechuga de pollo',q:'200g'},{i:'Brócoli',q:'150g'},{i:'Zanahoria',q:'1 ud'},{i:'Calabacín',q:'1 ud'}] },
+    { name:'Crema de verduras con pollo', kcal:380, prot:32, carb:28, gras:12,
+      ing:[{i:'Calabaza',q:'200g'},{i:'Zanahoria',q:'2 ud'},{i:'Puerro',q:'1 ud'},{i:'Pollo cocido',q:'100g'}] },
+    { name:'Salmón con brócoli', kcal:400, prot:36, carb:12, gras:22,
+      ing:[{i:'Salmón',q:'200g'},{i:'Brócoli',q:'200g'},{i:'Aceite de oliva',q:'1 cda'},{i:'Limón',q:'½ ud'}] },
+  ]
+};
+
+// ═══════════════════════════════════════════
 // INDEXEDDB — almacenamiento robusto para iOS PWA
 // ═══════════════════════════════════════════
 let db = null;
@@ -451,6 +517,8 @@ function initState(data) {
   if (!state.objetivo) state.objetivo = {};
   if (!state.calConfig) state.calConfig = {};
   if (!state.rounds) state.rounds = {};
+  if (!state.mealPlan) state.mealPlan = {};
+  if (!state.shopChecked) state.shopChecked = {};
 }
 
 async function loadState() {
@@ -792,6 +860,126 @@ function renderCalorias() {
 }
 
 // ═══════════════════════════════════════════
+// MENÚ SEMANAL
+// ═══════════════════════════════════════════
+let selectedMenuDay = new Date().getDay();
+selectedMenuDay = selectedMenuDay === 0 ? 6 : selectedMenuDay - 1;
+
+function buildDaySelectorMenu() {
+  const container = document.getElementById('daySelectorMenu');
+  container.innerHTML = '';
+  DIAS.forEach((d, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'day-btn' + (i === selectedMenuDay ? ' active' : '');
+    btn.innerHTML = `<span>${i+1}</span><span>${d}</span>`;
+    btn.onclick = () => {
+      selectedMenuDay = i;
+      container.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderMenuDay();
+    };
+    container.appendChild(btn);
+  });
+}
+
+function renderMenuDay() {
+  const dateKey = getDayKey(selectedMenuDay);
+  const plan = state.mealPlan[dateKey] || {};
+  const slots = [
+    { tipo:'desayuno', label:'🌅 DESAYUNO' },
+    { tipo:'comida',   label:'☀️ COMIDA' },
+    { tipo:'cena',     label:'🌙 CENA' },
+  ];
+  let dayKcal=0, dayProt=0, dayCarb=0, dayGras=0;
+  let html = '';
+
+  slots.forEach(({ tipo, label }) => {
+    const selectedIdx = plan[tipo] !== undefined ? plan[tipo] : -1;
+    const meal = selectedIdx >= 0 ? MEALS[tipo][selectedIdx] : null;
+    if (meal) { dayKcal+=meal.kcal; dayProt+=meal.prot; dayCarb+=meal.carb; dayGras+=meal.gras; }
+    const opts = MEALS[tipo].map((m,i) =>
+      `<option value="${i}" ${i===selectedIdx?'selected':''}>${m.name} · ${m.kcal} kcal</option>`).join('');
+    html += `<div class="card">
+      <div class="card-title">${label}</div>
+      <div class="form-group">
+        <select onchange="selectMeal('${tipo}',this.value,'${dateKey}')">
+          <option value="-1" ${selectedIdx<0?'selected':''}>— Sin planificar —</option>
+          ${opts}
+        </select>
+      </div>
+      ${meal ? `<div class="meal-macros">
+        <div class="meal-macro"><span>${meal.kcal}</span><small>kcal</small></div>
+        <div class="meal-macro"><span>${meal.prot}g</span><small>Proteína</small></div>
+        <div class="meal-macro"><span>${meal.carb}g</span><small>Carbos</small></div>
+        <div class="meal-macro"><span>${meal.gras}g</span><small>Grasas</small></div>
+      </div>` : ''}
+    </div>`;
+  });
+
+  if (dayKcal > 0) {
+    html += `<div class="card">
+      <div class="card-title">📊 TOTAL DÍA</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-value">${dayKcal}</div><div class="stat-label">Kcal totales</div></div>
+        <div class="stat-box"><div class="stat-value" style="color:var(--accent)">${dayProt}g</div><div class="stat-label">Proteína</div></div>
+      </div>
+      <div class="stats-grid" style="margin-top:8px">
+        <div class="stat-box"><div class="stat-value" style="color:#ff9f1c">${dayCarb}g</div><div class="stat-label">Carbos</div></div>
+        <div class="stat-box"><div class="stat-value" style="color:var(--accent2)">${dayGras}g</div><div class="stat-label">Grasas</div></div>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('menuDayContent').innerHTML = html;
+}
+
+function selectMeal(tipo, idx, dateKey) {
+  if (!state.mealPlan[dateKey]) state.mealPlan[dateKey] = {};
+  state.mealPlan[dateKey][tipo] = parseInt(idx);
+  save(); renderMenuDay(); renderShoppingList();
+  if (parseInt(idx) >= 0) showToast('Menú actualizado ✓');
+}
+
+function renderShoppingList() {
+  const el = document.getElementById('shoppingList');
+  const aggregated = {};
+  for (let d = 0; d < 7; d++) {
+    const dateKey = getDayKey(d);
+    const plan = state.mealPlan[dateKey] || {};
+    ['desayuno','comida','cena'].forEach(tipo => {
+      const idx = plan[tipo];
+      if (idx !== undefined && idx >= 0 && MEALS[tipo][idx]) {
+        MEALS[tipo][idx].ing.forEach(({ i, q }) => {
+          if (!aggregated[i]) aggregated[i] = [];
+          aggregated[i].push(q);
+        });
+      }
+    });
+  }
+  const items = Object.keys(aggregated).sort();
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🛒</div>Planifica comidas para generar la lista</div>';
+    return;
+  }
+  el.innerHTML = items.map(item => {
+    const key = btoa(unescape(encodeURIComponent(item))).replace(/=/g,'');
+    const checked = state.shopChecked[key] ? 'checked' : '';
+    return `<div class="shop-item" style="${checked?'opacity:.4':''}">
+      <div style="font-weight:600;font-size:14px">${item}</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:12px;color:var(--muted)">${aggregated[item].join(' + ')}</div>
+        <button class="shop-check ${checked}" onclick="toggleShop('${key}',this)">✓</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleShop(key, btn) {
+  state.shopChecked[key] = !state.shopChecked[key];
+  save(); renderShoppingList();
+}
+
+// ═══════════════════════════════════════════
 // CHART
 // ═══════════════════════════════════════════
 function drawLineChart(id, values, color) {
@@ -821,6 +1009,7 @@ async function init() {
   await loadState();
   checkBanner();
   buildDaySelector(); renderRutina(); renderHistorial(); renderPeso(); renderMedidas(); renderCalorias();
+  buildDaySelectorMenu(); renderMenuDay(); renderShoppingList();
   if (state.calConfig.tdee) {
     document.getElementById('calTDEE').textContent=state.calConfig.tdee;
     document.getElementById('calObjetivo').textContent=state.calConfig.objetivo;
