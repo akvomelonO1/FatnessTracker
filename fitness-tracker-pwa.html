@@ -56,9 +56,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 /* ── DASHBOARD HEADER ── */
 .dash-header{
   padding:calc(20px + var(--safe-top)) 20px 16px;
-  background:linear-gradient(180deg,#111 0%,transparent 100%);
+  background:var(--bg);
   position:sticky;top:0;z-index:100;
+  border-bottom:1px solid transparent;
 }
+.dash-header.scrolled{border-bottom-color:var(--border);box-shadow:0 4px 16px rgba(0,0,0,.5);}
 .dash-greeting{font-size:13px;color:var(--muted);margin-bottom:2px;}
 .dash-name{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;color:var(--text);line-height:1;}
 .dash-name span{color:var(--accent);}
@@ -403,6 +405,23 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         <button class="search-btn" onclick="searchFood()">🔍</button>
       </div>
       <div id="foodResults"></div>
+      <div id="foodManualWrap" style="display:none">
+        <div class="divider"></div>
+        <div class="card-sub">✏️ Añadir a mano (valores por 100g)</div>
+        <div class="form-group" style="margin-bottom:10px"><label>Nombre</label><input type="text" id="manualNombre" placeholder="Ej: Lechuga iceberg"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Kcal /100g</label><input type="number" id="manualKcal" placeholder="15"></div>
+          <div class="form-group"><label>Proteína</label><input type="number" id="manualProt" step="0.1" placeholder="1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Carbos</label><input type="number" id="manualCarb" step="0.1" placeholder="3"></div>
+          <div class="form-group"><label>Grasa</label><input type="number" id="manualFat" step="0.1" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <button class="btn-outline" onclick="cancelarManual()">Cancelar</button>
+          <button class="btn-full" onclick="guardarManual()">Continuar</button>
+        </div>
+      </div>
       <div id="foodQuantityWrap" style="display:none">
         <div style="font-weight:600;font-size:14px;margin-bottom:8px" id="foodSelectedName"></div>
         <div class="form-row">
@@ -822,6 +841,7 @@ let selectedFood=null,searchDebounce=null;
 function onFoodInput(val){clearTimeout(searchDebounce);if(val.length<2){document.getElementById('foodResults').innerHTML='';return;}searchDebounce=setTimeout(()=>searchFood(val),500);}
 async function searchFood(query){
   query=query||document.getElementById('foodSearch').value;
+  window._lastQuery=query;
   if(!query||query.length<2)return;
   document.getElementById('foodResults').innerHTML='<div class="spinner">Buscando...</div>';
   document.getElementById('foodQuantityWrap').style.display='none';
@@ -829,9 +849,9 @@ async function searchFood(query){
     const url=`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=8&lc=es&cc=es`;
     const res=await fetch(url);const data=await res.json();
     const products=(data.products||[]).filter(p=>p.nutriments&&p.nutriments['energy-kcal_100g']>0);
-    if(!products.length){const local=searchLocalDB(query);if(local.length){renderFoodResults(local);return;}document.getElementById('foodResults').innerHTML='<div class="empty"><div class="empty-icon">🔍</div>Sin resultados. Prueba otro nombre.</div>';return;}
-    renderFoodResults(products.slice(0,6).map(p=>({name:p.product_name_es||p.product_name||p.generic_name||'Producto',brand:p.brands||'',kcal:Math.round(p.nutriments['energy-kcal_100g']||0),prot:Math.round((p.nutriments['proteins_100g']||0)*10)/10,carbs:Math.round((p.nutriments['carbohydrates_100g']||0)*10)/10,fat:Math.round((p.nutriments['fat_100g']||0)*10)/10})));
-  }catch(e){const local=searchLocalDB(query);if(local.length){renderFoodResults(local);return;}document.getElementById('foodResults').innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Sin conexión. Mostrando base local.</div>';}
+    if(!products.length){const local=searchLocalDB(query);if(local.length){renderFoodResults(local);return;}document.getElementById('foodResults').innerHTML=`<div class="empty"><div class="empty-icon">🔍</div>Sin resultados para "${query}".</div>`+btnManual(query);return;}
+    renderFoodResults(products.slice(0,6).map(p=>({name:p.product_name_es||p.product_name||p.generic_name||'Producto',brand:p.brands||'',kcal:Math.round(p.nutriments['energy-kcal_100g']||0),prot:Math.round((p.nutriments['proteins_100g']||0)*10)/10,carbs:Math.round((p.nutriments['carbohydrates_100g']||0)*10)/10,fat:Math.round((p.nutriments['fat_100g']||0)*10)/10})),query);
+  }catch(e){const local=searchLocalDB(query);if(local.length){renderFoodResults(local,query);return;}document.getElementById('foodResults').innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div>Sin conexión. Mostrando base local.</div>`+btnManual(query);}
 }
 const LOCAL_DB=[
   {name:'Huevo entero',kcal:143,prot:13,carbs:1,fat:10},{name:'Pechuga de pollo',kcal:110,prot:23,carbs:0,fat:2},
@@ -856,10 +876,44 @@ const LOCAL_DB=[
   {name:'Macarrones con tomate',kcal:150,prot:5,carbs:28,fat:3},{name:'Alitas de pollo',kcal:190,prot:18,carbs:0,fat:13},
   {name:'Solomillos de pollo',kcal:110,prot:23,carbs:0,fat:2},{name:'Cuartos traseros pollo',kcal:190,prot:19,carbs:0,fat:12},
 ];
-function searchLocalDB(q){q=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');return LOCAL_DB.filter(f=>f.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));}
+function searchLocalDB(q){q=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');const all=[...(state.customFoods||[]),...LOCAL_DB];return all.filter(f=>f.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));}
 function renderFoodResults(items){
-  document.getElementById('foodResults').innerHTML=`<div class="search-results">${items.map((f,i)=>`<div class="search-result-item" onclick="selectFood(${i})"><div class="result-name">${f.name}${f.brand?` <span style="color:var(--muted);font-weight:400">${f.brand}</span>`:''}</div><div class="result-detail">${f.kcal} kcal · ${f.prot}g prot · ${f.carbs}g carbos · ${f.fat}g grasa</div></div>`).join('')}</div>`;
+  document.getElementById('foodResults').innerHTML=`<div class="search-results">${items.map((f,i)=>`<div class="search-result-item" onclick="selectFood(${i})"><div class="result-name">${f.name}${f.brand?` <span style="color:var(--muted);font-weight:400">${f.brand}</span>`:''}</div><div class="result-detail">${f.kcal} kcal · ${f.prot}g prot · ${f.carbs}g carbos · ${f.fat}g grasa</div></div>`).join('')}</div>`+btnManual(window._lastQuery||'');
   window._foodSearchResults=items;
+}
+function btnManual(query){
+  return `<button class="btn-outline" style="margin-top:8px" onclick="abrirManual('${(query||'').replace(/'/g,"")}')">✏️ Añadir alimento a mano</button>`;
+}
+function abrirManual(query){
+  document.getElementById('foodResults').innerHTML='';
+  document.getElementById('foodManualWrap').style.display='block';
+  document.getElementById('manualNombre').value=query||'';
+  document.getElementById('manualKcal').value='';
+  document.getElementById('manualProt').value='';
+  document.getElementById('manualCarb').value='';
+  document.getElementById('manualFat').value='';
+}
+function cancelarManual(){document.getElementById('foodManualWrap').style.display='none';}
+function guardarManual(){
+  const nombre=document.getElementById('manualNombre').value.trim();
+  const kcal=parseFloat(document.getElementById('manualKcal').value);
+  if(!nombre||isNaN(kcal))return alert('Pon al menos nombre y kcal por 100g');
+  selectedFood={
+    name:nombre,brand:'',kcal,
+    prot:parseFloat(document.getElementById('manualProt').value)||0,
+    carbs:parseFloat(document.getElementById('manualCarb').value)||0,
+    fat:parseFloat(document.getElementById('manualFat').value)||0,
+  };
+  // Guardar en base local personal para reusarlo
+  if(!state.customFoods)state.customFoods=[];
+  if(!state.customFoods.some(f=>f.name.toLowerCase()===nombre.toLowerCase())){
+    state.customFoods.push({...selectedFood});save();
+  }
+  document.getElementById('foodManualWrap').style.display='none';
+  document.getElementById('foodSelectedName').textContent=selectedFood.name;
+  document.getElementById('foodQuantityWrap').style.display='block';
+  updateNutriPreview();
+  document.getElementById('foodQty').oninput=updateNutriPreview;
 }
 function selectFood(idx){selectedFood=window._foodSearchResults[idx];document.getElementById('foodSelectedName').textContent=selectedFood.name;document.getElementById('foodQuantityWrap').style.display='block';document.getElementById('foodResults').innerHTML='';updateNutriPreview();document.getElementById('foodQty').oninput=updateNutriPreview;}
 function updateNutriPreview(){if(!selectedFood)return;const g=parseFloat(document.getElementById('foodQty').value)||100;const m=g/100;document.getElementById('foodNutriPreview').textContent=`${Math.round(selectedFood.kcal*m)} kcal · ${Math.round(selectedFood.prot*m*10)/10}g prot · ${Math.round(selectedFood.carbs*m*10)/10}g carbos · ${Math.round(selectedFood.fat*m*10)/10}g grasa`;}
@@ -987,6 +1041,14 @@ async function init(){
   }
   const unEl=document.getElementById('userName');
   if(unEl)unEl.textContent=state.userName;
+  // Sombra header al hacer scroll
+  const dashHeader=document.querySelector('.dash-header');
+  if(dashHeader){
+    window.addEventListener('scroll',()=>{
+      if(window.scrollY>10)dashHeader.classList.add('scrolled');
+      else dashHeader.classList.remove('scrolled');
+    },{passive:true});
+  }
   buildDaySelector();renderRutina();renderHistorial();renderPeso();renderMedidas();renderFoodLog();renderSalud();renderDashboard();
   if(state.calConfig.tdee){document.getElementById('calTDEE').textContent=state.calConfig.tdee;document.getElementById('calObjetivo').textContent=state.calConfig.objetivo;document.getElementById('calResultado').style.display='block';}
 }
