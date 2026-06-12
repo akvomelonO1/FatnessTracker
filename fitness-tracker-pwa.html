@@ -59,8 +59,26 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   background:var(--bg);
   position:sticky;top:0;z-index:100;
   border-bottom:1px solid transparent;
+  transition:padding .3s ease;
 }
-.dash-header.scrolled{border-bottom-color:var(--border);box-shadow:0 4px 16px rgba(0,0,0,.5);}
+.dash-header.scrolled{border-bottom-color:var(--border);box-shadow:0 4px 16px rgba(0,0,0,.5);padding-top:calc(10px + var(--safe-top));padding-bottom:10px;}
+.dash-header-text{transition:opacity .25s ease,transform .25s ease;transform-origin:left center;}
+.dash-header.scrolled .dash-header-text{opacity:0;transform:scale(.7) translateY(-6px);pointer-events:none;}
+.lifter-emoji{display:inline-block;transform-origin:center bottom;}
+/* Mini emoji que aparece al hacer scroll */
+.dash-mini-lifter{
+  position:absolute;left:20px;top:50%;transform:translateY(-50%) scale(0);
+  font-size:26px;opacity:0;transition:opacity .25s ease,transform .25s ease;
+  transform-origin:center bottom;pointer-events:none;
+}
+.dash-header.scrolled .dash-mini-lifter{opacity:1;transform:translateY(-50%) scale(1);}
+.dash-mini-lifter.lifting{animation:lift 1.1s ease-in-out infinite;}
+@keyframes lift{
+  0%,100%{transform:translateY(-50%) scale(1) rotate(0deg);}
+  25%{transform:translateY(-58%) scale(1.08) rotate(-4deg);}
+  50%{transform:translateY(-50%) scale(1) rotate(0deg);}
+  75%{transform:translateY(-58%) scale(1.08) rotate(4deg);}
+}
 .dash-greeting{font-size:13px;color:var(--muted);margin-bottom:2px;}
 .dash-name{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;color:var(--text);line-height:1;}
 .dash-name span{color:var(--accent);}
@@ -278,9 +296,12 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
 <!-- ══════════ HOME / DASHBOARD ══════════ -->
 <div class="section active" id="tab-home">
-  <div class="dash-header">
-    <div class="dash-greeting">Buenas, <span id="userName">Eloy</span> 👋</div>
-    <div class="dash-name">🏋️ <span>FATNESS</span> TRACKER</div>
+  <div class="dash-header" id="dashHeader">
+    <div class="dash-mini-lifter" id="miniLifter">🏋️</div>
+    <div class="dash-header-text" id="dashHeaderText">
+      <div class="dash-greeting">Buenas, <span id="userName">Eloy</span> 👋</div>
+      <div class="dash-name"><span class="lifter-emoji" id="lifterEmoji">🏋️</span> <span>FATNESS</span> TRACKER</div>
+    </div>
   </div>
   <div class="dash-body">
 
@@ -1041,12 +1062,18 @@ async function init(){
   }
   const unEl=document.getElementById('userName');
   if(unEl)unEl.textContent=state.userName;
-  // Sombra header al hacer scroll
+  // Sombra header + animación emoji al hacer scroll
   const dashHeader=document.querySelector('.dash-header');
+  const miniLifter=document.getElementById('miniLifter');
   if(dashHeader){
     window.addEventListener('scroll',()=>{
-      if(window.scrollY>10)dashHeader.classList.add('scrolled');
-      else dashHeader.classList.remove('scrolled');
+      if(window.scrollY>10){
+        dashHeader.classList.add('scrolled');
+        if(miniLifter)miniLifter.classList.add('lifting');
+      } else {
+        dashHeader.classList.remove('scrolled');
+        if(miniLifter)miniLifter.classList.remove('lifting');
+      }
     },{passive:true});
   }
   buildDaySelector();renderRutina();renderHistorial();renderPeso();renderMedidas();renderFoodLog();renderSalud();renderDashboard();
