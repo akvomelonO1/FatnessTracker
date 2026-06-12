@@ -39,6 +39,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   padding:12px 0 10px;cursor:pointer;transition:all .25s;gap:4px;position:relative;
 }
 .bnav-icon{font-size:24px;line-height:1;transition:transform .25s;}
+.bnav-icon svg{width:23px;height:23px;display:block;color:var(--muted);transition:color .2s;}
+.bnav-tab.active .bnav-icon svg{color:var(--accent);}
 .bnav-label{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);transition:color .25s;}
 .bnav-tab.active .bnav-label{color:var(--accent);}
 .bnav-tab.active .bnav-icon{transform:scale(1.15);}
@@ -262,7 +264,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .empty-icon{font-size:32px;margin-bottom:6px;}
 .divider{height:1px;background:var(--border);margin:12px 0;}
 .spinner{text-align:center;padding:16px;color:var(--muted);font-size:13px;}
-.toast{position:fixed;bottom:calc(88px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(80px);
+.toast{position:fixed;top:calc(70px + var(--safe-top));left:50%;transform:translateX(-50%) translateY(-80px);
   background:rgba(22,22,22,.96);border:1px solid var(--accent);border-radius:10px;
   padding:10px 18px;font-size:13px;font-weight:600;color:var(--accent);
   z-index:300;transition:transform .3s ease;white-space:nowrap;
@@ -275,7 +277,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 <!-- ══════════ HOME / DASHBOARD ══════════ -->
 <div class="section active" id="tab-home">
   <div class="dash-header">
-    <div class="dash-greeting">Buenas, Eloy 👋</div>
+    <div class="dash-greeting">Buenas, <span id="userName">Eloy</span> 👋</div>
     <div class="dash-name">🏋️ <span>FATNESS</span> TRACKER</div>
   </div>
   <div class="dash-body">
@@ -550,19 +552,19 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 <nav class="bottom-nav">
   <div class="bnav-inner">
     <div class="bnav-tab active" id="bnav-home" onclick="showTab('home')">
-      <div class="bnav-icon">🏠</div>
+      <div class="bnav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5"/><path d="M5 9v11a1 1 0 001 1h12a1 1 0 001-1V9"/><path d="M9 21v-6h6v6"/></svg></div>
       <div class="bnav-label">Inicio</div>
     </div>
     <div class="bnav-tab" id="bnav-rutina" onclick="showTab('rutina')">
-      <div class="bnav-icon">🏋️</div>
+      <div class="bnav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5l11 11"/><path d="M21 21l-1-1"/><path d="M3 3l1 1"/><path d="M18 22l4-4"/><path d="M2 6l4-4"/><path d="M3 10l7-7"/><path d="M14 21l7-7"/></svg></div>
       <div class="bnav-label">Rutina</div>
     </div>
     <div class="bnav-tab" id="bnav-nutricion" onclick="showTab('nutricion')">
-      <div class="bnav-icon">🥗</div>
+      <div class="bnav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18"/><path d="M12 11V3a4 4 0 014 4v0"/><path d="M5 11v3a7 7 0 0014 0v-3"/></svg></div>
       <div class="bnav-label">Nutrición</div>
     </div>
     <div class="bnav-tab" id="bnav-datos" onclick="showTab('datos')">
-      <div class="bnav-icon">📊</div>
+      <div class="bnav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg></div>
       <div class="bnav-label">Datos</div>
     </div>
   </div>
@@ -654,19 +656,27 @@ function renderDashboard(){
   const today=new Date();
   const todayStr=today.toISOString().split('T')[0];
   const todayIdx=today.getDay()===0?6:today.getDay()-1;
+  // Día seleccionado en el dashboard (por defecto hoy)
+  if(!window._dashSelectedKey)window._dashSelectedKey=todayStr;
+  const selKey=window._dashSelectedKey;
+  const selIdx=(()=>{const d=new Date(selKey+'T12:00:00');const g=d.getDay();return g===0?6:g-1;})();
 
-  // Semana
+  // Semana — pills clicables
   const weekEl=document.getElementById('dashWeek');weekEl.innerHTML='';
   for(let i=0;i<7;i++){
     const d=new Date(today);d.setDate(d.getDate()-(todayIdx-i));
     const key=d.toISOString().split('T')[0];
-    const isToday=i===todayIdx;
+    const isSel=key===selKey;
     const hasTrained=state.registros.some(r=>r.fecha===key)||(state.checks[key]&&Object.values(state.checks[key]).some(v=>v));
     const pill=document.createElement('div');
-    pill.className='dash-day-pill'+(isToday?' today':'')+(hasTrained?' trained':'');
+    pill.className='dash-day-pill'+(isSel?' today':'')+(hasTrained?' trained':'');
+    pill.style.cursor='pointer';
     pill.innerHTML=`<span class="day-num">${d.getDate()}</span><span>${DIAS[i]}</span>`;
+    pill.onclick=()=>{window._dashSelectedKey=key;renderDashboard();};
     weekEl.appendChild(pill);
   }
+
+  const viendoHoy=selKey===todayStr;
 
   // Peso hero
   if(state.pesos.length){
@@ -686,35 +696,36 @@ function renderDashboard(){
     }
   }
 
-  // Rutina hoy
-  const rutHoy=RUTINAS[todayIdx];
-  const checks=state.checks[todayStr]||{};
+  // Rutina del día seleccionado
+  const rutHoy=RUTINAS[selIdx];
+  const checks=state.checks[selKey]||{};
   const comp=rutHoy.ejercicios.filter((_,i)=>checks[i]).length;
   document.getElementById('dashRutinaHoy').textContent=rutHoy.nombre;
   document.getElementById('dashRutinaProgress').textContent=`${comp}/${rutHoy.ejercicios.length} ejercicios`;
 
-  // Kcal hoy
-  const foods=state.foodLog[todayStr]||[];
+  // Kcal del día seleccionado
+  const foods=state.foodLog[selKey]||[];
   const kcalHoy=foods.reduce((s,f)=>s+f.kcal,0);
   document.getElementById('dashKcalHoy').textContent=kcalHoy;
   document.getElementById('dashKcalObj').textContent=state.calConfig.objetivo?`Objetivo: ${state.calConfig.objetivo}`:'Objetivo: —';
 
-  // Salud hoy
-  const saludHoy=state.salud[todayStr]||{};
+  // Salud del día seleccionado
+  const saludHoy=state.salud[selKey]||{};
   document.getElementById('dashPasosHoy').textContent=saludHoy.pasos?saludHoy.pasos.toLocaleString():'0';
   document.getElementById('dashKcalGastadas').textContent=saludHoy.total?`${saludHoy.total} kcal gastadas`:'— kcal gastadas';
   document.getElementById('dashSueno').textContent=saludHoy.sueno?saludHoy.sueno+'h':'—';
 
   // Balance
+  const balCard=document.getElementById('dashBalanceCard');
   if(saludHoy.total&&kcalHoy){
-    const balCard=document.getElementById('dashBalanceCard');balCard.style.display='block';
+    balCard.style.display='block';
     const deficit=saludHoy.total-kcalHoy;
     document.getElementById('dashTotalGastadas').textContent=saludHoy.total;
     document.getElementById('dashTotalComidas').textContent=kcalHoy;
     document.getElementById('dashDeficit').textContent=(deficit>0?'+':'')+deficit+' kcal';
     document.getElementById('dashDeficitBar').style.width=Math.min(100,Math.abs(deficit)/saludHoy.total*100)+'%';
     document.getElementById('dashDeficitBar').style.background=deficit>0?'var(--accent)':'var(--accent2)';
-  }
+  } else if(balCard){balCard.style.display='none';}
 
   // Barras actividad
   const barsEl=document.getElementById('activityBars');
@@ -730,7 +741,7 @@ function renderDashboard(){
     const steps=(state.salud[key]||{}).pasos||0;
     const pct=Math.max(4,Math.round((steps/maxSteps)*100));
     const bar=document.createElement('div');
-    bar.className='abar'+(i===todayIdx?' active':'');
+    bar.className='abar'+(key===selKey?' active':'');
     bar.style.height=pct+'%';
     barsEl.appendChild(bar);
     const lbl=document.createElement('div');
@@ -738,7 +749,7 @@ function renderDashboard(){
     labelsEl.appendChild(lbl);
   }
 
-  // Preview rutina
+  // Preview rutina del día seleccionado
   const prev=document.getElementById('dashRutinaPreview');
   const tc=rutHoy.tipo==='fuerza'?'type-fuerza':rutHoy.tipo==='cardio'?'type-cardio':'type-descanso';
   const tl=rutHoy.tipo==='fuerza'?'💪 Fuerza':rutHoy.tipo==='cardio'?'🏃 Cardio':'😴 Descanso';
@@ -944,6 +955,14 @@ async function init(){
   ['rutinaDate','nutriDate','datosDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=dateStr;});
   ['pesoFecha','medFecha','regFecha','saludFecha','nutriFecha'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=today;});
   await loadState();
+  // Nombre del usuario: primera vez pregunta y guarda
+  if(!state.userName){
+    const n=prompt('¡Bienvenido/a a Fatness Tracker! 🏋️\n\n¿Cómo te llamas?');
+    state.userName=(n&&n.trim())?n.trim():'crack';
+    save();
+  }
+  const unEl=document.getElementById('userName');
+  if(unEl)unEl.textContent=state.userName;
   buildDaySelector();renderRutina();renderHistorial();renderPeso();renderMedidas();renderFoodLog();renderSalud();renderDashboard();
   if(state.calConfig.tdee){document.getElementById('calTDEE').textContent=state.calConfig.tdee;document.getElementById('calObjetivo').textContent=state.calConfig.objetivo;document.getElementById('calResultado').style.display='block';}
 }
