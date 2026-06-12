@@ -61,6 +61,14 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   border-bottom:1px solid transparent;
 }
 .dash-header.scrolled{border-bottom-color:var(--border);box-shadow:0 4px 16px rgba(0,0,0,.5);}
+.lifter-emoji{display:inline-block;transform-origin:center bottom;}
+.lifter-emoji.lifting{animation:lift 1.1s ease-in-out infinite;}
+@keyframes lift{
+  0%,100%{transform:translateY(0) scale(1) rotate(0deg);}
+  25%{transform:translateY(-5px) scale(1.12) rotate(-6deg);}
+  50%{transform:translateY(0) scale(1) rotate(0deg);}
+  75%{transform:translateY(-5px) scale(1.12) rotate(6deg);}
+}
 .dash-greeting{font-size:13px;color:var(--muted);margin-bottom:2px;}
 .dash-name{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;color:var(--text);line-height:1;}
 .dash-name span{color:var(--accent);}
@@ -279,8 +287,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 <!-- ══════════ HOME / DASHBOARD ══════════ -->
 <div class="section active" id="tab-home">
   <div class="dash-header" id="dashHeader">
-    <div class="dash-greeting">Buenas, <span id="userName">Eloy</span> 👋</div>
-    <div class="dash-name">🏋️ <span>FATNESS</span> TRACKER</div>
+    <div class="dash-name"><span class="lifter-emoji" id="lifterEmoji">🏋️</span> <span>FATNESS</span> TRACKER</div>
   </div>
   <div class="dash-body">
 
@@ -1033,20 +1040,18 @@ async function init(){
   ['rutinaDate','nutriDate','datosDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=dateStr;});
   ['pesoFecha','medFecha','regFecha','saludFecha','nutriFecha'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=today;});
   await loadState();
-  // Nombre del usuario: primera vez pregunta y guarda
-  if(!state.userName){
-    const n=prompt('¡Bienvenido/a a Fatness Tracker! 🏋️\n\n¿Cómo te llamas?');
-    state.userName=(n&&n.trim())?n.trim():'crack';
-    save();
-  }
-  const unEl=document.getElementById('userName');
-  if(unEl)unEl.textContent=state.userName;
-  // Sombra header al hacer scroll
+  // Sombra header + animación emoji al hacer scroll
   const dashHeader=document.querySelector('.dash-header');
+  const lifterEmoji=document.getElementById('lifterEmoji');
   if(dashHeader){
     window.addEventListener('scroll',()=>{
-      if(window.scrollY>10)dashHeader.classList.add('scrolled');
-      else dashHeader.classList.remove('scrolled');
+      if(window.scrollY>10){
+        dashHeader.classList.add('scrolled');
+        if(lifterEmoji)lifterEmoji.classList.add('lifting');
+      } else {
+        dashHeader.classList.remove('scrolled');
+        if(lifterEmoji)lifterEmoji.classList.remove('lifting');
+      }
     },{passive:true});
   }
   buildDaySelector();renderRutina();renderHistorial();renderPeso();renderMedidas();renderFoodLog();renderSalud();renderDashboard();
