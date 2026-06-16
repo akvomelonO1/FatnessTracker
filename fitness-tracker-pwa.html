@@ -934,9 +934,10 @@ let selectedFood=null,searchDebounce=null;
 
 // ═══ MODOS DE ENTRADA (buscar / IA / foto) ═══
 function setInputMode(mode){
+  const idMap={buscar:'inputBuscar',ia:'inputIA',foto:'inputFoto'};
   ['buscar','ia','foto'].forEach(m=>{
     document.getElementById('mode-'+m).classList.toggle('active',m===mode);
-    document.getElementById('input'+m.charAt(0).toUpperCase()+m.slice(1)).style.display=m===mode?'block':'none';
+    document.getElementById(idMap[m]).style.display=m===mode?'block':'none';
   });
   document.getElementById('foodResults').innerHTML='';
   document.getElementById('foodManualWrap').style.display='none';
