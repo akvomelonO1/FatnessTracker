@@ -661,6 +661,7 @@ body.light .input-mode.active{color:#fff;}
       <div class="hint" style="margin-bottom:14px">Carga la última versión de la app sin borrar tus datos de peso, rutinas ni comidas.</div>
       <div class="card-sub">✨ Inteligencia Artificial</div>
       <button class="btn-outline" id="iaKeyBtn" onclick="gestionarGeminiKey()" style="margin-bottom:8px">🔑 Configurar API key de IA</button>
+      <div id="iaCounter" class="hint" style="margin-bottom:8px"></div>
       <div class="hint">Necesaria para "Describir" y "Foto" en Nutrición. Gratis con Google Gemini.</div>
     </div>
   </div>
@@ -761,6 +762,7 @@ function showTab(id){
   document.getElementById('tab-'+id).classList.add('active');
   document.getElementById('bnav-'+id).classList.add('active');
   if(id==='home')renderDashboard();
+  if(id==='datos')updateIAKeyBtn();
 }
 
 // ═══ TIMER ═══
@@ -963,8 +965,14 @@ async function callGemini(parts){
   });
   if(!res.ok){
     if(res.status===400){state.geminiKey=null;save();throw new Error('API key inválida. Vuelve a intentarlo.');}
+    if(res.status===429)throw new Error('Límite diario de IA alcanzado. Vuelve mañana o usa el buscador.');
     throw new Error('Error '+res.status);
   }
+  // Contador de peticiones por día
+  const hoy=new Date().toISOString().split('T')[0];
+  if(!state.iaCount)state.iaCount={};
+  state.iaCount[hoy]=(state.iaCount[hoy]||0)+1;
+  save();
   const data=await res.json();
   const txt=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
   return txt;
@@ -1393,6 +1401,12 @@ function gestionarGeminiKey(){
 function updateIAKeyBtn(){
   const btn=document.getElementById('iaKeyBtn');
   if(btn)btn.textContent=state.geminiKey?'🔑 IA configurada ✓ (cambiar/borrar)':'🔑 Configurar API key de IA';
+  const counter=document.getElementById('iaCounter');
+  if(counter){
+    const hoy=new Date().toISOString().split('T')[0];
+    const usadas=(state.iaCount&&state.iaCount[hoy])||0;
+    counter.innerHTML=state.geminiKey?`📊 Peticiones de IA hoy: <strong style="color:var(--accent)">${usadas}</strong> / 250 (límite gratuito Gemini Flash)`:'';
+  }
 }
 
 async function forzarActualizacion(){
