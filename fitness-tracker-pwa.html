@@ -1452,6 +1452,27 @@ async function init(){
   ['rutinaDate','nutriDate','datosDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=dateStr;});
   ['pesoFecha','medFecha','regFecha','saludFecha','nutriFecha'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=today;});
   await loadState();
+
+  // ═══ RECIBIR DATOS DEL ATAJO DE APPLE (via parámetros URL) ═══
+  const urlParams=new URLSearchParams(window.location.search);
+  if(urlParams.has('pasos')||urlParams.has('activas')||urlParams.has('sueno')){
+    const fecha=urlParams.get('fecha')||new Date().toISOString().split('T')[0];
+    const entry={
+      fecha,
+      pasos:parseInt(urlParams.get('pasos'))||0,
+      activas:parseInt(urlParams.get('activas'))||0,
+      reposo:parseInt(urlParams.get('reposo'))||0,
+      sueno:parseFloat(urlParams.get('sueno'))||0,
+    };
+    entry.total=entry.activas+entry.reposo;
+    state.salud[fecha]=entry;
+    save();
+    // Limpiar URL sin recargar
+    window.history.replaceState({},'',window.location.pathname);
+    // Mostrar confirmación
+    setTimeout(()=>showToast(`✅ Datos de Garmin importados: ${entry.pasos.toLocaleString()} pasos`),800);
+  }
+
   // Tema: usa preferencia guardada, o la del dispositivo
   let theme=state.theme;
   if(!theme){
