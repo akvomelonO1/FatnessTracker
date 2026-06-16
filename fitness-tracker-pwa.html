@@ -268,6 +268,15 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
 /* ── FOOD SEARCH ── */
 .search-wrap{position:relative;margin-bottom:10px;}
+.input-modes{display:flex;gap:6px;margin-bottom:12px;background:var(--surface2);padding:4px;border-radius:10px;}
+.input-mode{flex:1;text-align:center;padding:8px 4px;font-size:12px;font-weight:600;color:var(--muted);border-radius:7px;cursor:pointer;transition:all .2s;}
+.input-mode.active{background:var(--accent);color:#000;}
+body.light .input-mode.active{color:#fff;}
+.ia-result-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.ia-result-item:last-child{border-bottom:none;}
+.ia-edit-btn{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;flex-shrink:0;}
+.ia-total{padding:10px 14px;font-size:13px;color:var(--muted);text-align:center;background:rgba(232,244,40,.06);border-radius:8px;margin-top:8px;}
+.ia-total strong{color:var(--accent);font-size:15px;}
 .search-input{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;
   padding:11px 40px 11px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;}
 .search-input:focus{outline:none;border-color:var(--accent);}
@@ -424,12 +433,41 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <div id="nutriObjetivoBar"></div>
     </div>
     <div class="card">
-      <div class="card-title">🔍 AÑADIR ALIMENTO</div>
-      <div class="search-wrap">
-        <input class="search-input" id="foodSearch" type="text" placeholder="Busca un alimento..."
-          oninput="onFoodInput(this.value)" autocomplete="off" autocorrect="off">
-        <button class="search-btn" onclick="searchFood()">🔍</button>
+      <div class="card-title">🍽️ AÑADIR COMIDA</div>
+      <div class="input-modes">
+        <div class="input-mode active" id="mode-buscar" onclick="setInputMode('buscar')">🔍 Buscar</div>
+        <div class="input-mode" id="mode-ia" onclick="setInputMode('ia')">✨ Describir</div>
+        <div class="input-mode" id="mode-foto" onclick="setInputMode('foto')">📷 Foto</div>
       </div>
+
+      <!-- MODO BUSCAR -->
+      <div id="inputBuscar">
+        <div class="search-wrap">
+          <input class="search-input" id="foodSearch" type="text" placeholder="Busca un alimento..."
+            oninput="onFoodInput(this.value)" autocomplete="off" autocorrect="off">
+          <button class="search-btn" onclick="searchFood()">🔍</button>
+        </div>
+      </div>
+
+      <!-- MODO IA TEXTO -->
+      <div id="inputIA" style="display:none">
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Cuenta qué has comido</label>
+          <textarea class="search-input" id="iaText" rows="3" style="resize:none;font-family:'DM Sans',sans-serif" placeholder="Ej: pasta con pollo y un poco de brócoli, un yogur y una manzana"></textarea>
+        </div>
+        <button class="btn-full" onclick="analizarTextoIA()">✨ Analizar con IA</button>
+        <div class="hint">La IA estima los alimentos y cantidades automáticamente</div>
+      </div>
+
+      <!-- MODO FOTO -->
+      <div id="inputFoto" style="display:none">
+        <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none" onchange="analizarFotoIA(this)">
+        <button class="btn-full" onclick="document.getElementById('fotoInput').click()">📷 Hacer foto / elegir imagen</button>
+        <div class="hint">Haz una foto de tu plato y la IA lo identifica</div>
+        <div id="fotoPreview"></div>
+      </div>
+
+      <div id="iaSpinner" style="display:none"><div class="spinner">✨ Analizando...</div></div>
       <div id="foodResults"></div>
       <div id="foodManualWrap" style="display:none">
         <div class="divider"></div>
@@ -620,7 +658,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div class="card">
       <div class="card-title">⚙️ AJUSTES</div>
       <button class="btn-outline" onclick="forzarActualizacion()" style="margin-bottom:8px">🔄 Forzar actualización</button>
-      <div class="hint">Carga la última versión de la app sin borrar tus datos de peso, rutinas ni comidas.</div>
+      <div class="hint" style="margin-bottom:14px">Carga la última versión de la app sin borrar tus datos de peso, rutinas ni comidas.</div>
+      <div class="card-sub">✨ Inteligencia Artificial</div>
+      <button class="btn-outline" id="iaKeyBtn" onclick="gestionarGeminiKey()" style="margin-bottom:8px">🔑 Configurar API key de IA</button>
+      <div class="hint">Necesaria para "Describir" y "Foto" en Nutrición. Gratis con Google Gemini.</div>
     </div>
   </div>
 </div>
@@ -890,6 +931,162 @@ function toggleRound(ei,ronda,total){const k=getDayKey(selectedDay);if(!state.ro
 
 // ═══ FOOD SEARCH ═══
 let selectedFood=null,searchDebounce=null;
+
+// ═══ MODOS DE ENTRADA (buscar / IA / foto) ═══
+function setInputMode(mode){
+  ['buscar','ia','foto'].forEach(m=>{
+    document.getElementById('mode-'+m).classList.toggle('active',m===mode);
+    document.getElementById('input'+m.charAt(0).toUpperCase()+m.slice(1)).style.display=m===mode?'block':'none';
+  });
+  document.getElementById('foodResults').innerHTML='';
+  document.getElementById('foodManualWrap').style.display='none';
+  document.getElementById('foodQuantityWrap').style.display='none';
+  document.getElementById('fotoPreview').innerHTML='';
+}
+
+// ═══ API KEY GEMINI (se guarda en el dispositivo) ═══
+async function getGeminiKey(){
+  if(state.geminiKey)return state.geminiKey;
+  const k=prompt('Para usar la IA necesitas una API key gratuita de Google Gemini.\n\n1. Entra en: aistudio.google.com/apikey\n2. Crea una key (gratis, sin tarjeta)\n3. Pégala aquí:\n\n(Se guarda solo en tu móvil)');
+  if(k&&k.trim()){state.geminiKey=k.trim();save();return state.geminiKey;}
+  return null;
+}
+
+async function callGemini(parts){
+  const key=await getGeminiKey();
+  if(!key)throw new Error('Sin API key');
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const res=await fetch(url,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json'}})
+  });
+  if(!res.ok){
+    if(res.status===400){state.geminiKey=null;save();throw new Error('API key inválida. Vuelve a intentarlo.');}
+    throw new Error('Error '+res.status);
+  }
+  const data=await res.json();
+  const txt=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  return txt;
+}
+
+const IA_PROMPT=`Eres un nutricionista. Analiza la comida descrita y devuelve SOLO un JSON (sin texto adicional) con este formato exacto:
+{"alimentos":[{"name":"nombre del alimento","g":cantidad_en_gramos,"kcal":calorias_totales,"prot":proteina_g,"carbs":carbohidratos_g,"fat":grasa_g}]}
+Reglas:
+- Estima cantidades realistas en gramos si no se especifican (una ración normal).
+- kcal, prot, carbs, fat son los TOTALES para esa cantidad, no por 100g.
+- Usa nombres en español.
+- Si hay varios alimentos, inclúyelos todos por separado.
+Comida: `;
+
+async function analizarTextoIA(){
+  const texto=document.getElementById('iaText').value.trim();
+  if(!texto)return alert('Escribe qué has comido');
+  document.getElementById('iaSpinner').style.display='block';
+  document.getElementById('foodResults').innerHTML='';
+  try{
+    const respuesta=await callGemini([{text:IA_PROMPT+texto}]);
+    procesarRespuestaIA(respuesta);
+  }catch(e){
+    document.getElementById('foodResults').innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div>${e.message||'Error al analizar'}</div>`;
+  }
+  document.getElementById('iaSpinner').style.display='none';
+}
+
+async function analizarFotoIA(input){
+  const file=input.files[0];if(!file)return;
+  document.getElementById('fotoPreview').innerHTML='';
+  document.getElementById('iaSpinner').style.display='block';
+  document.getElementById('foodResults').innerHTML='';
+  try{
+    // Convertir a base64
+    const base64=await new Promise((res,rej)=>{
+      const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);
+    });
+    // Preview
+    document.getElementById('fotoPreview').innerHTML=`<img src="data:${file.type};base64,${base64}" style="width:100%;border-radius:10px;margin-top:10px;max-height:200px;object-fit:cover">`;
+    const respuesta=await callGemini([
+      {text:IA_PROMPT+'(analiza la foto del plato)'},
+      {inline_data:{mime_type:file.type,data:base64}}
+    ]);
+    procesarRespuestaIA(respuesta);
+  }catch(e){
+    document.getElementById('foodResults').innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div>${e.message||'Error al analizar la foto'}</div>`;
+  }
+  document.getElementById('iaSpinner').style.display='none';
+}
+
+function procesarRespuestaIA(respuesta){
+  let parsed;
+  try{parsed=JSON.parse(respuesta);}catch(e){
+    // Intentar extraer JSON de dentro del texto
+    const m=respuesta.match(/\{[\s\S]*\}/);
+    if(m){try{parsed=JSON.parse(m[0]);}catch(_){}}
+  }
+  if(!parsed||!parsed.alimentos||!parsed.alimentos.length){
+    document.getElementById('foodResults').innerHTML='<div class="empty"><div class="empty-icon">🤔</div>No pude identificar alimentos. Prueba a describirlo de otra forma.</div>';
+    return;
+  }
+  // Mostrar resultados con opción de añadir todos o individualmente
+  window._iaResults=parsed.alimentos.map(a=>({
+    name:a.name||'Alimento',g:a.g||null,
+    kcal:Math.round(a.kcal||0),prot:Math.round((a.prot||0)*10)/10,
+    carbs:Math.round((a.carbs||0)*10)/10,fat:Math.round((a.fat||0)*10)/10
+  }));
+  const totalKcal=window._iaResults.reduce((s,a)=>s+a.kcal,0);
+  let html='<div class="search-results"><div class="result-section-title">✨ Detectado por IA</div>';
+  window._iaResults.forEach((a,i)=>{
+    html+=`<div class="ia-result-item">
+      <div style="flex:1">
+        <div class="result-name">${a.name}${a.g?` <span style="color:var(--muted);font-weight:400">${a.g}g</span>`:''}</div>
+        <div class="result-detail">${a.kcal} kcal · ${a.prot}g P · ${a.carbs}g C · ${a.fat}g G</div>
+      </div>
+      <button class="ia-edit-btn" onclick="editarIAItem(${i})">✏️</button>
+    </div>`;
+  });
+  html+=`</div>
+    <div class="ia-total">Total estimado: <strong>${totalKcal} kcal</strong></div>
+    <div class="form-group" style="margin:10px 0"><label>Comida</label>
+      <select id="iaMeal"><option value="desayuno">Desayuno</option><option value="comida" selected>Comida</option><option value="cena">Cena</option><option value="snack">Snack</option></select>
+    </div>
+    <button class="btn-full" onclick="añadirTodosIA()">Añadir todo al registro</button>`;
+  document.getElementById('foodResults').innerHTML=html;
+}
+
+function editarIAItem(i){
+  const a=window._iaResults[i];
+  const nuevoG=prompt(`Cantidad de "${a.name}" en gramos:`,a.g||100);
+  if(nuevoG===null)return;
+  const g=parseFloat(nuevoG);if(isNaN(g))return;
+  // Reescalar valores proporcionalmente si había gramos
+  if(a.g&&a.g>0){
+    const factor=g/a.g;
+    a.kcal=Math.round(a.kcal*factor);a.prot=Math.round(a.prot*factor*10)/10;
+    a.carbs=Math.round(a.carbs*factor*10)/10;a.fat=Math.round(a.fat*factor*10)/10;
+  }
+  a.g=g;
+  // Re-render
+  const meal=document.getElementById('iaMeal')?.value||'comida';
+  procesarRespuestaIA(JSON.stringify({alimentos:window._iaResults}));
+  if(document.getElementById('iaMeal'))document.getElementById('iaMeal').value=meal;
+}
+
+function añadirTodosIA(){
+  if(!window._iaResults||!window._iaResults.length)return;
+  const meal=document.getElementById('iaMeal').value;
+  const fecha=document.getElementById('nutriFecha').value;
+  if(!state.foodLog[fecha])state.foodLog[fecha]=[];
+  window._iaResults.forEach(a=>{
+    state.foodLog[fecha].push({name:a.name,g:a.g,meal,kcal:a.kcal,prot:a.prot,carbs:a.carbs,fat:a.fat,ts:Date.now(),ia:true});
+  });
+  save();
+  document.getElementById('iaText').value='';
+  document.getElementById('fotoPreview').innerHTML='';
+  document.getElementById('foodResults').innerHTML='';
+  renderFoodLog();
+  showToast(`${window._iaResults.length} alimentos añadidos ✓`);
+  window._iaResults=null;
+}
+
 function onFoodInput(val){clearTimeout(searchDebounce);if(val.length<2){document.getElementById('foodResults').innerHTML='';return;}searchDebounce=setTimeout(()=>searchFood(val),500);}
 async function searchFood(query){
   query=query||document.getElementById('foodSearch').value;
@@ -1178,6 +1375,25 @@ function renderHistorial(){const el=document.getElementById('historialList');if(
 function drawLineChart(id,values,color){const svg=document.getElementById(id);if(!svg||values.length<2)return;const W=300,H=70,pad=6,min=Math.min(...values)-1,max=Math.max(...values)+1;const xStep=(W-pad*2)/(values.length-1);const pts=values.map((v,i)=>`${pad+i*xStep},${H-pad-((v-min)/(max-min))*(H-pad*2)}`);const area=`M${pts[0]} `+pts.slice(1).map(p=>`L${p}`).join(' ')+` L${pts[pts.length-1].split(',')[0]},${H} L${pad},${H} Z`;svg.innerHTML=`<defs><linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.3"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#g${id})"/><path d="M${pts[0]} ${pts.slice(1).map(p=>`L${p}`).join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>${pts.map((p,i)=>i===pts.length-1?`<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="3" fill="${color}"/>`:'').join('')}`;}
 
 // ═══ INIT ═══
+function gestionarGeminiKey(){
+  if(state.geminiKey){
+    const accion=confirm('Ya tienes una API key configurada.\n\nAceptar = cambiarla\nCancelar = borrarla');
+    if(accion){
+      const k=prompt('Pega tu nueva API key de Gemini:');
+      if(k&&k.trim()){state.geminiKey=k.trim();save();showToast('API key actualizada ✓');}
+    } else {
+      state.geminiKey=null;save();showToast('API key borrada');updateIAKeyBtn();
+    }
+  } else {
+    const k=prompt('Para usar la IA necesitas una API key gratuita de Google Gemini.\n\n1. Entra en: aistudio.google.com/apikey\n2. Crea una key (gratis, sin tarjeta)\n3. Pégala aquí:\n\n(Se guarda solo en tu móvil)');
+    if(k&&k.trim()){state.geminiKey=k.trim();save();showToast('API key guardada ✓');updateIAKeyBtn();}
+  }
+}
+function updateIAKeyBtn(){
+  const btn=document.getElementById('iaKeyBtn');
+  if(btn)btn.textContent=state.geminiKey?'🔑 IA configurada ✓ (cambiar/borrar)':'🔑 Configurar API key de IA';
+}
+
 async function forzarActualizacion(){
   showToast('Actualizando...');
   try{
@@ -1241,7 +1457,7 @@ async function init(){
       }
     },{passive:true});
   }
-  buildDaySelector();renderRutina();renderHistorial();renderPeso();renderMedidas();renderFoodLog();renderSalud();renderDashboard();
+  buildDaySelector();renderRutina();renderHistorial();renderPeso();renderMedidas();renderFoodLog();renderSalud();renderDashboard();updateIAKeyBtn();
   if(state.calConfig.tdee){document.getElementById('calTDEE').textContent=state.calConfig.tdee;document.getElementById('calObjetivo').textContent=state.calConfig.objetivo;colapsarObjetivo();}
 }
 init();
