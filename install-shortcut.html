@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instalar atajo Garmin</title>
+<style>
+  body{background:#0d0d0d;color:#f0f0f0;font-family:-apple-system,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center;}
+  h1{font-size:28px;color:#e8f428;margin-bottom:8px;}
+  p{color:#777;font-size:14px;margin-bottom:30px;line-height:1.6;}
+  .btn{display:block;width:100%;max-width:300px;padding:16px;background:#e8f428;color:#000;border-radius:12px;font-size:16px;font-weight:700;text-decoration:none;margin:10px auto;}
+  .btn2{background:#1f1f1f;color:#f0f0f0;border:1px solid #333;}
+  .step{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:16px;margin:8px 0;text-align:left;max-width:340px;width:100%;}
+  .step-num{color:#e8f428;font-weight:700;font-size:13px;margin-bottom:4px;}
+  .step-text{font-size:14px;color:#ccc;}
+</style>
+</head>
+<body>
+<div style="font-size:48px;margin-bottom:16px">🏋️</div>
+<h1>Atajo Garmin Sync</h1>
+<p>Sincroniza tus pasos, calorías y sueño<br>de Garmin con Fatness Tracker</p>
+
+<a class="btn" href="shortcuts://import-workflow?url=https://akvomelono1.github.io/FatnessTracker/GarminFatnessSync.shortcut&name=GarminFatnessSync">
+  📲 Instalar en Atajos
+</a>
+
+<p style="font-size:12px;color:#555;margin-top:20px;margin-bottom:20px">Si no funciona el botón de arriba, prueba el método manual:</p>
+
+<div class="step">
+  <div class="step-num">PASO 1</div>
+  <div class="step-text">Abre la app <strong>Atajos</strong> → toca <strong>+</strong></div>
+</div>
+<div class="step">
+  <div class="step-num">PASO 2</div>
+  <div class="step-text">Busca <strong>"Pedir entrada"</strong> → añade 4 veces con los textos: "Pasos", "Calorías activas", "Calorías reposo", "Horas sueño"</div>
+</div>
+<div class="step">
+  <div class="step-num">PASO 3</div>
+  <div class="step-text">Añade <strong>"Abrir URL"</strong> con esta URL (insertar las variables desde el + azul):</div>
+</div>
+<div style="background:#111;border-radius:8px;padding:12px;font-size:11px;color:#e8f428;word-break:break-all;max-width:340px;text-align:left;margin:8px 0">
+https://akvomelono1.github.io/FatnessTracker/fitness-tracker-pwa.html?pasos=[pasos]&activas=[activas]&reposo=[reposo]&sueno=[sueno]
+</div>
+
+<a class="btn btn2" href="https://akvomelono1.github.io/FatnessTracker/fitness-tracker-pwa.html" style="margin-top:20px">
+  Volver a la app
+</a>
+</body>
+</html>
