@@ -745,11 +745,41 @@ const RUTINAS={
 
 // ═══ INDEXEDDB ═══
 let db=null,state={},saveTimeout=null;
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('FatnessTrackerV3',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('data');r.onsuccess=e=>res(e.target.result);r.onerror=()=>rej(r.error);});}
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('FatnessTrackerFINAL',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('data');r.onsuccess=e=>res(e.target.result);r.onerror=()=>rej(r.error);})}
+async function migrateOldData(){
+  const names=['FatnessTrackerV3','FatnessTrackerV2','FitnessTrackerV3','FitnessTrackerV2'];
+  for(const name of names){
+    try{
+      const od=await new Promise(res=>{const r=indexedDB.open(name,1);r.onsuccess=e=>res(e.target.result);r.onerror=()=>res(null);});
+      if(!od)continue;
+      const d=await new Promise(res=>{try{const tx=od.transaction('data','readonly');const r=tx.objectStore('data').get('state');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);}catch(_){res(null);}});
+      if(d&&((d.pesos&&d.pesos.length)||(d.registros&&d.registros.length)||Object.keys(d.foodLog||{}).length)){
+        await dbSet('state',d);initState(d);return true;
+      }
+    }catch(_){}
+  }
+  try{const ls=JSON.parse(localStorage.getItem('ft_state')||'{}');if(ls.pesos&&ls.pesos.length){await dbSet('state',ls);initState(ls);return true;}}catch(_){}
+  return false;
+}
 function dbGet(k){return new Promise(res=>{const tx=db.transaction('data','readonly');const r=tx.objectStore('data').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);});}
 function dbSet(k,v){return new Promise(res=>{const tx=db.transaction('data','readwrite');tx.objectStore('data').put(v,k);tx.oncomplete=res;tx.onerror=res;});}
 function initState(d){state=d||{};['pesos','medidas','registros'].forEach(k=>{if(!state[k])state[k]=[];});['foodLog','salud','checks','rounds'].forEach(k=>{if(!state[k])state[k]={};});if(!state.objetivo)state.objetivo={};if(!state.calConfig)state.calConfig={};}
-async function loadState(){try{db=await openDB();const d=await dbGet('state');initState(d||{});}catch(e){try{initState(JSON.parse(localStorage.getItem('ft_state')||'{}'));}catch(_){initState({});}}}
+async function loadState(){
+  try{
+    db=await openDB();
+    let d=await dbGet('state');
+    if(!d||(!(d.pesos&&d.pesos.length)&&!(d.registros&&d.registros.length)&&!Object.keys(d.foodLog||{}).length)){
+      // BD vacía o nueva — intentar migrar datos antiguos
+      const migrated=await migrateOldData();
+      if(!migrated)initState(d||{});
+    } else {
+      initState(d);
+    }
+  }catch(e){
+    try{initState(JSON.parse(localStorage.getItem('ft_state')||'{}'));}
+    catch(_){initState({});}
+  }
+}
 function save(){clearTimeout(saveTimeout);saveTimeout=setTimeout(async()=>{try{if(db)await dbSet('state',state);localStorage.setItem('ft_state',JSON.stringify(state));}catch(e){}},300);}
 
 // ═══ TOAST ═══
